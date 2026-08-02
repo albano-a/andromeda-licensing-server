@@ -17,9 +17,7 @@ services:
         build: ./server
         env_file: .env
         ports:
-            - "8000:8000"
-        volumes:
-            - ./src/core/security/private_key.pem:/run/secrets/private_key.pem:ro
+            - "4127:8000"
         depends_on:
             db:
                 condition: service_healthy
