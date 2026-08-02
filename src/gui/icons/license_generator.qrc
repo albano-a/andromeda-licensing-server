@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="svg">
+    <file>generate.svg</file>
+    <file>bin.svg</file>
+  </qresource>
+</RCC>

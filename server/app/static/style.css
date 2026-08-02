@@ -1,0 +1,117 @@
+:root {
+    font-family: system-ui, sans-serif;
+}
+body {
+    margin: 0;
+    background: #f4f5f7;
+    color: #1a1a1a;
+}
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 24px;
+    background: #1e2230;
+    color: white;
+}
+header .brand {
+    font-weight: 600;
+}
+header nav a,
+header .user {
+    color: #cfd3e0;
+    margin-right: 16px;
+    text-decoration: none;
+}
+header nav a:hover {
+    color: white;
+}
+main {
+    max-width: 1000px;
+    margin: 32px auto;
+    padding: 0 16px;
+}
+.card {
+    background: white;
+    padding: 24px;
+    border-radius: 8px;
+    max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.card label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 14px;
+}
+.card input {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+.card button,
+.button {
+    background: #3a5dff;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+}
+.error {
+    color: #c0392b;
+}
+.toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+}
+th,
+td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+    font-size: 14px;
+}
+.mono {
+    font-family: monospace;
+}
+.badge {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+.badge-active {
+    background: #d4f7dc;
+    color: #1a7a37;
+}
+.badge-revoked {
+    background: #fbdada;
+    color: #a11;
+}
+.badge-expired {
+    background: #eee;
+    color: #666;
+}
+button.revoke,
+button.delete {
+    background: none;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 12px;
+}

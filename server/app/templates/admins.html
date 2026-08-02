@@ -1,0 +1,49 @@
+{% extends "base.html" %} {% block title %}Admins{% endblock %} {% block content
+%}
+<div class="toolbar"><h1>Administradores</h1></div>
+
+<ul id="admins-list"></ul>
+
+<form class="card" id="new-admin-form">
+    <h2>Novo admin</h2>
+    <p id="form-error" class="error"></p>
+    <label>Usuário<input type="text" name="username" required /></label>
+    <label
+        >Senha<input type="password" name="password" required minlength="8"
+    /></label>
+    <button type="submit">Criar</button>
+</form>
+
+<script>
+    async function loadAdmins() {
+        const res = await fetch("/api/v1/admin/admins");
+        const admins = await res.json();
+        document.getElementById("admins-list").innerHTML = admins
+            .map((a) => `<li>${a}</li>`)
+            .join("");
+    }
+    document
+        .getElementById("new-admin-form")
+        .addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const res = await fetch("/api/v1/admin/admins", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    username: form.username.value,
+                    password: form.password.value,
+                }),
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                document.getElementById("form-error").textContent =
+                    err.detail || "Erro ao criar admin";
+                return;
+            }
+            form.reset();
+            loadAdmins();
+        });
+    loadAdmins();
+</script>
+{% endblock %}

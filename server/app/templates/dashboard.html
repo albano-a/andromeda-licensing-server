@@ -1,0 +1,77 @@
+{% extends "base.html" %} {% block title %}Licenças{% endblock %} {% block
+content %}
+<div class="toolbar">
+    <h1>Licenças</h1>
+    <a class="button" href="/licenses/new">+ Nova licença</a>
+</div>
+
+<table id="licenses-table">
+    <thead>
+        <tr>
+            <th>Email</th>
+            <th>Hardware</th>
+            <th>Emitida em</th>
+            <th>Expira em</th>
+            <th>Dias restantes</th>
+            <th>Status</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<script>
+    async function loadLicenses() {
+        const res = await fetch("/api/v1/admin/licenses");
+        if (res.status === 303 || res.redirected) {
+            window.location = "/login";
+            return;
+        }
+        const licenses = await res.json();
+        const tbody = document.querySelector("#licenses-table tbody");
+        tbody.innerHTML = "";
+        const today = new Date();
+
+        for (const lic of licenses) {
+            const expires = new Date(lic.expires_at);
+            const daysLeft = Math.ceil((expires - today) / 86400000);
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+      <td>${lic.user_email}</td>
+      <td class="mono">${lic.hardware_id.slice(0, 12)}…</td>
+      <td>${lic.issued_at.slice(0, 10)}</td>
+      <td>${lic.expires_at.slice(0, 10)}</td>
+      <td>${daysLeft >= 0 ? daysLeft : "Expirada"}</td>
+      <td><span class="badge badge-${lic.status}">${lic.status}</span></td>
+      <td>
+        ${lic.has_signature ? `<a href="/api/v1/admin/licenses/${lic.id}/download" download="license_${lic.user_email}.json">baixar</a>` : ""}
+        ${lic.status === "active" ? `<button data-id="${lic.id}" class="revoke">revogar</button>` : ""}
+        <button data-id="${lic.id}" class="delete">excluir</button>
+      </td>`;
+            tbody.appendChild(tr);
+        }
+
+        tbody.querySelectorAll(".revoke").forEach(
+            (btn) =>
+                (btn.onclick = async () => {
+                    await fetch(
+                        `/api/v1/admin/licenses/${btn.dataset.id}/revoke`,
+                        { method: "POST" },
+                    );
+                    loadLicenses();
+                }),
+        );
+        tbody.querySelectorAll(".delete").forEach(
+            (btn) =>
+                (btn.onclick = async () => {
+                    if (!confirm("Excluir esta licença?")) return;
+                    await fetch(`/api/v1/admin/licenses/${btn.dataset.id}`, {
+                        method: "DELETE",
+                    });
+                    loadLicenses();
+                }),
+        );
+    }
+    loadLicenses();
+</script>
+{% endblock %}
