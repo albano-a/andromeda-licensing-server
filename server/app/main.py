@@ -19,7 +19,9 @@ from .security import hash_password
 app = FastAPI(title="Andromeda License Server")
 
 app.add_middleware(SessionMiddleware, secret_key=settings.session_secret)
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+app.mount(
+    "/static", StaticFiles(directory=str(Path(__file__).resolve().parent / "static")), name="static"
+)
 
 app.include_router(verify.router)
 app.include_router(admin_api.router)

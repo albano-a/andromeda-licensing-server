@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -8,7 +10,7 @@ from ..models import AdminUser
 from ..security import require_login, verify_password
 
 router = APIRouter(tags=["admin-ui"])
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
 
 
 @router.get("/login")
@@ -49,9 +51,7 @@ def dashboard(request: Request, admin_id: str = Depends(require_login)):
 
 @router.get("/licenses/new")
 def new_license_form(request: Request, admin_id: str = Depends(require_login)):
-    return templates.TemplateResponse(
-        "new_license.html", {"request": request, "error": None}
-    )
+    return templates.TemplateResponse("new_license.html", {"request": request, "error": None})
 
 
 @router.get("/admins")
