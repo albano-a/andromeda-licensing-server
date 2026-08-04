@@ -15,7 +15,7 @@ templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent
 
 @router.get("/login")
 def login_form(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request, "error": None})
+    return templates.TemplateResponse(request, "login.html", {"error": None, "username": None})
 
 
 @router.post("/login")
@@ -28,7 +28,7 @@ def login_submit(
     admin = db.query(AdminUser).filter(AdminUser.username == username).first()
     if not admin or not verify_password(password, admin.password_hash):
         return templates.TemplateResponse(
-            "login.html", {"request": request, "error": "Usuário ou senha inválidos"}
+            request, "login.html", {"error": "Usuário ou senha inválidos", "username": None}
         )
     request.session["admin_id"] = admin.id
     request.session["admin_username"] = admin.username
@@ -44,19 +44,21 @@ def logout(request: Request):
 @router.get("/dashboard")
 def dashboard(request: Request, admin_id: str = Depends(require_login)):
     return templates.TemplateResponse(
-        "dashboard.html",
-        {"request": request, "username": request.session.get("admin_username")},
+        request, "dashboard.html", {"username": request.session.get("admin_username")}
     )
 
 
 @router.get("/licenses/new")
 def new_license_form(request: Request, admin_id: str = Depends(require_login)):
-    return templates.TemplateResponse("new_license.html", {"request": request, "error": None})
+    return templates.TemplateResponse(
+        request,
+        "new_license.html",
+        {"error": None, "username": request.session.get("admin_username")},
+    )
 
 
 @router.get("/admins")
 def admins_page(request: Request, admin_id: str = Depends(require_login)):
     return templates.TemplateResponse(
-        "admins.html",
-        {"request": request, "username": request.session.get("admin_username")},
+        request, "admins.html", {"username": request.session.get("admin_username")}
     )
