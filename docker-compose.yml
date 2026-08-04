@@ -17,7 +17,7 @@ services:
         build: ./server
         environment:
             DATABASE_URL: postgresql+psycopg2://andromeda:andromeda@db:5432/andromeda_license
-            PRIVATE_KEY_PATH: /run/secrets/private_key.pem
+            PRIVATE_KEY_B64: ${PRIVATE_KEY_B64}
             SESSION_SECRET: ${SESSION_SECRET}
             ADMIN_USERNAME: ${ADMIN_USERNAME}
             ADMIN_PASSWORD: ${ADMIN_PASSWORD}

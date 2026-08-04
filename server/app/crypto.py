@@ -1,6 +1,5 @@
 import base64
 import json
-from pathlib import Path
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
@@ -25,8 +24,7 @@ class CryptoManager:
         elif settings.private_key_pem:
             key_bytes = settings.private_key_pem.encode()
         else:
-            with open(Path(settings.private_key_path), "rb") as f:
-                key_bytes = f.read()
+            raise RuntimeError("Private key is required via PRIVATE_KEY_B64 or PRIVATE_KEY_PEM")
 
         self._priv = serialization.load_pem_private_key(
             key_bytes, password=None, backend=default_backend()

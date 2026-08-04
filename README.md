@@ -22,19 +22,10 @@ CREATE_DATABASE_ON_STARTUP=true
 SESSION_SECRET=uma-string-longa-e-aleatoria
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=uma-senha-forte
-```
-
-If you can mount a secret file, set:
-
-```env
-PRIVATE_KEY_PATH=/run/secrets/private_key.pem
-```
-
-If Coolify makes file mounting awkward, use the base64 option instead:
-
-```env
 PRIVATE_KEY_B64=base64-do-arquivo-pem
 ```
+
+Use `PRIVATE_KEY_B64` or `PRIVATE_KEY_PEM`. The server no longer reads a mounted `private_key.pem` file by default.
 
 ### Criar o database uma vez
 
@@ -47,6 +38,22 @@ python scripts/create_database.py
 ```
 
 Use `POSTGRES_MAINTENANCE_DB=postgres` if you need to connect through the default maintenance database.
+
+### Migrar os dados antigos do SQLite
+
+If you want to import the old desktop app records into PostgreSQL for history/listing, run:
+
+```bash
+python scripts/migrate_sqlite.py
+```
+
+By default it reads:
+
+```text
+src/core/security/license_users.db
+```
+
+Imported rows are not re-signed. They are inserted as legacy records with `signature = null` and `license_json = null`.
 
 ### Observação
 
