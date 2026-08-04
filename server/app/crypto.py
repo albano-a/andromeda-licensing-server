@@ -1,5 +1,6 @@
 import base64
 import json
+from pathlib import Path
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
@@ -14,10 +15,19 @@ class CryptoManager:
         self._load_key()
 
     def _load_key(self):
-        with open(settings.private_key_path, "rb") as f:
-            self._priv = serialization.load_pem_private_key(
-                f.read(), password=None, backend=default_backend()
-            )
+        key_bytes = None
+
+        if settings.private_key_b64:
+            key_bytes = base64.b64decode(settings.private_key_b64)
+        elif settings.private_key_pem:
+            key_bytes = settings.private_key_pem.encode()
+        else:
+            with open(Path(settings.private_key_path), "rb") as f:
+                key_bytes = f.read()
+
+        self._priv = serialization.load_pem_private_key(
+            key_bytes, password=None, backend=default_backend()
+        )
 
     def sign_license(self, lic_data: dict) -> str:
         lic_bytes = json.dumps(lic_data, sort_keys=True).encode()
