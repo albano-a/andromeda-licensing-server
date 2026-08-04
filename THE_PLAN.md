@@ -40,6 +40,129 @@ O app desktop PyQt5 atual será **removido**, já que o painel web assume esse p
     ```
 - **Remove** (substituídos pelo servidor): `src/main.py`, `src/main_controller.py`, `src/gui/**`, `src/core/api.py`, `src/core/db.py`. `src/core/crypto.py` é portado para `server/app/crypto.py` e removido do local antigo. `requirements.txt` passa a listar as deps do servidor (fastapi, uvicorn, sqlalchemy, psycopg2-binary, jinja2, passlib[bcrypt], python-multipart, cryptography).
 
+### Como isso tudo funciona, sem enrolação
+
+Pensa no sistema em três caixas:
+
+1. **O PostgreSQL** é a caixa que guarda os dados de verdade.
+2. **A aplicação FastAPI** é a caixa que recebe pedidos, lê/escreve no PostgreSQL e devolve respostas.
+3. **O Docker Compose ou o Coolify** é só o “maestro” que sobe as caixas, conecta uma na outra e injeta as variáveis de ambiente.
+
+O PostgreSQL não “faz o trabalho da aplicação”. Ele só guarda dados. A aplicação é que decide quando criar tabela, quando criar admin, quando criar licença e quando consultar uma licença.
+
+Quando o container da aplicação sobe, o `startup` do FastAPI faz duas coisas:
+
+1. `Base.metadata.create_all(bind=engine)`.
+   - Isso cria as tabelas que faltam no banco configurado em `DATABASE_URL`.
+   - Isso **não cria o database PostgreSQL em si**.
+   - Isso só cria as tabelas dentro do database que já existe.
+2. `_bootstrap_admin()`.
+   - Se a tabela `admins` estiver vazia, ele cria o primeiro admin usando `ADMIN_USERNAME` e `ADMIN_PASSWORD`.
+
+Em linguagem de gente:
+
+- primeiro você precisa de um database PostgreSQL já existente;
+- depois a app conecta nesse database;
+- quando a app sobe pela primeira vez, ela cria as tabelas;
+- se ainda não existir admin, ela cria o primeiro login;
+- depois disso o painel web já funciona.
+
+### O que o PostgreSQL guarda neste projeto
+
+Hoje existem só duas tabelas de domínio:
+
+- `admins`
+  - guarda os logins administrativos do painel;
+  - tem `id`, `username`, `password_hash` e `created_at`;
+  - `username` é único, para não duplicar login.
+- `licenses`
+  - guarda as licenças emitidas e o estado delas;
+  - tem `license_id`, `user_email`, `hardware_id`, datas de emissão/expiração, `status`, `notes`, `signature`, `license_json`, `created_by` e `created_at`;
+  - `license_id` é único porque é o identificador público da licença;
+  - `created_by` aponta para `admins.id`, ou seja, mostra qual admin criou aquela licença.
+
+O campo `license_json` existe porque o painel precisa conseguir reenviar ou baixar a licença inteira exatamente como foi assinada.
+
+### Como o Docker Compose funciona aqui
+
+No `docker-compose.yml`, você tem dois serviços:
+
+- `db`
+  - sobe um container `postgres:16`;
+  - cria o banco inicial `andromeda_license`;
+  - cria um usuário `andromeda` com senha `andromeda`;
+  - guarda os dados num volume nomeado `pgdata`, para não perder tudo quando o container reiniciar.
+- `app`
+  - sobe a imagem do servidor FastAPI;
+  - usa `DATABASE_URL` para saber onde está o banco;
+  - usa `SESSION_SECRET` para assinar sessão de login;
+  - usa `ADMIN_USERNAME` e `ADMIN_PASSWORD` para criar o primeiro admin;
+  - expõe a porta `4127` para fora e aponta para a porta interna `8000` do FastAPI.
+
+O `depends_on` faz a aplicação esperar o PostgreSQL ficar saudável antes de subir. Isso evita o clássico “app subiu antes do banco”.
+
+### Como o fluxo real fica no Coolify
+
+No Coolify, a lógica é a mesma do compose, só que separada em recursos:
+
+1. Você cria o resource PostgreSQL.
+2. Define `Username`, `Password` e `Initial database`.
+3. O Coolify gera a conexão interna do banco.
+4. Você cria o resource da aplicação `andromeda-license`.
+5. A app recebe o `DATABASE_URL` apontando para o PostgreSQL.
+6. A app sobe, cria as tabelas e cria o admin inicial.
+
+### Chave privada e assinatura
+
+A chave privada não fica no banco. Ela fica fora dele, como segredo de deploy.
+
+Hoje o código aceita três jeitos de fornecer a chave:
+
+- `PRIVATE_KEY_B64`
+  - recomendado no Coolify;
+  - você cola a chave PEM em base64 numa variável de ambiente;
+  - é o caminho mais prático quando o painel não deixa montar arquivo direito.
+- `PRIVATE_KEY_PEM`
+  - você cola o conteúdo PEM puro;
+  - funciona, mas variável multilinha costuma ser chata em painel web.
+- `PRIVATE_KEY_PATH`
+  - você monta um arquivo no caminho informado;
+  - útil quando o host permite secret mount/volume.
+
+A leitura da chave é preguiçosa: ela só é carregada quando alguém vai criar uma licença nova. Isso é importante porque o servidor pode subir mesmo sem a chave montada, mas não vai conseguir assinar licenças até a chave existir.
+
+### O que o painel faz de verdade
+
+O painel não é só visual. Ele aciona endpoints do servidor:
+
+- `/login` autentica o admin;
+- `/dashboard` mostra a visão geral;
+- `/licenses/new` cria licença nova;
+- `/api/v1/admin/licenses` lista licenças;
+- `/api/v1/licenses/verify` deixa o cliente Andromeda consultar se a licença continua válida.
+
+Quando cria uma licença nova, o servidor:
+
+1. valida o email e os parâmetros;
+2. gera um `license_id` novo;
+3. monta o payload da licença;
+4. assina o payload com a chave privada;
+5. grava tudo na tabela `licenses`;
+6. devolve o JSON assinado para download.
+
+### O que está valendo hoje no código
+
+O estado atual do repositório já faz isto:
+
+- sobe FastAPI no `server/app/main.py`;
+- cria as tabelas no startup com SQLAlchemy;
+- cria o primeiro admin se a tabela estiver vazia;
+- guarda licenças e admins no PostgreSQL;
+- carrega a chave privada só quando precisa assinar;
+- aceita fallback local no cliente Andromeda quando o servidor não responde.
+
+O que ainda é uma decisão de implantação, não de código, é como o Coolify vai fornecer a chave privada e como você vai preparar o primeiro deploy.
+
 ### Modelo de dados (Postgres)
 
 - `licenses`: id, user_email, hardware_id, license_id (uuid, único), issued_at, expires_at, status (`active`/`revoked`/`expired`), notes, signature, license_json (payload assinado completo, para poder reexportar/baixar), created_by (admin), created_at.
