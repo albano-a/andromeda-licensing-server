@@ -20,8 +20,11 @@ router = APIRouter(
     prefix="/api/v1/admin", tags=["admin"], dependencies=[Depends(require_login)]
 )
 
-_crypto = CryptoManager()
 _EMAIL_RGX = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
+
+
+def _get_crypto() -> CryptoManager:
+    return CryptoManager()
 
 
 @router.get("/licenses", response_model=list[LicenseOut])
@@ -61,7 +64,7 @@ def create_license(
         "license_id": str(uuid.uuid4()),
         "hardware_id": payload.hardware_id,
     }
-    signature = _crypto.sign_license(lic_payload)
+    signature = _get_crypto().sign_license(lic_payload)
     license_json = {"license": lic_payload, "signature": signature}
 
     lic = License(

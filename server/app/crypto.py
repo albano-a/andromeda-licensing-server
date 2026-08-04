@@ -12,7 +12,10 @@ from .config import settings
 class CryptoManager:
     def __init__(self):
         self._priv = None
-        self._load_key()
+
+    def _ensure_key_loaded(self):
+        if self._priv is None:
+            self._load_key()
 
     def _load_key(self):
         key_bytes = None
@@ -30,6 +33,7 @@ class CryptoManager:
         )
 
     def sign_license(self, lic_data: dict) -> str:
+        self._ensure_key_loaded()
         lic_bytes = json.dumps(lic_data, sort_keys=True).encode()
         sig = self._priv.sign(
             lic_bytes,
