@@ -183,6 +183,65 @@ O que ainda é uma decisão de implantação, não de código, é como o Coolify
 - `docker-compose.yml` na raiz: serviço `app` (build do Dockerfile) + serviço `db` (postgres:16, volume nomeado). A chave privada é montada como **bind mount somente-leitura** (não copiada para dentro da imagem), para não vazar no build.
 - **Nota de segurança a levantar com o usuário**: `src/core/security/private_key.pem` parece estar versionado no git deste repo. Vou reusar o arquivo como está (não vou reescrever histórico do git sem pedido explícito), mas recomendo removê-lo do controle de versão e tratá-lo só como secret local/mount — decisão que fica para o usuário confirmar separadamente.
 
+### Incidentes reais encontrados no deploy
+
+Esta seção registra os problemas que apareceram no mundo real e a correção aplicada. A ideia é evitar repetir diagnóstico manual toda vez.
+
+1. **`database "andromeda" does not exist` no Postgres**
+  - **Causa:** o healthcheck do `docker-compose.yml` testava `pg_isready -U andromeda`, e o PostgreSQL tentava validar o database padrão `andromeda`, que não existia.
+  - **Correção:** o healthcheck passou a usar `pg_isready -U andromeda -d andromeda_license`.
+  - **Resultado:** o banco continuou saudável, mas parou de logar FATAL falso por database errado.
+
+2. **`private_key.pem` não existia no container**
+  - **Causa:** o servidor ainda tentava ler a chave como arquivo montado em `/run/secrets/private_key.pem`.
+  - **Correção:** o servidor passou a aceitar apenas `PRIVATE_KEY_B64` ou `PRIVATE_KEY_PEM` por variável de ambiente.
+  - **Resultado:** o deploy ficou independente de bind mount do arquivo.
+
+3. **`PRIVATE_KEY_B64` recebeu PEM bruto em vez de base64**
+  - **Causa:** o segredo foi colado como texto PEM inteiro, não como base64 real.
+  - **Correção:** `server/app/crypto.py` passou a aceitar tanto base64 verdadeiro quanto PEM bruto nessa variável, para não quebrar o deploy quando o painel do Coolify trata multiline de forma ruim.
+  - **Resultado:** a geração de licença voltou a funcionar mesmo com a entrada mal formatada.
+
+4. **`ADMIN_USERNAME` / `ADMIN_PASSWORD` / `SESSION_SECRET` vazios**
+  - **Causa:** o resource da app subiu sem esses env vars obrigatórios.
+  - **Correção:** preencher os valores no resource da aplicação; o bootstrap do primeiro admin depende deles.
+  - **Resultado:** o bootstrap do usuário admin passou a funcionar.
+
+5. **`bcrypt` falhando com senha maior que 72 bytes**
+  - **Causa:** o hash do `ADMIN_PASSWORD` explodia no bootstrap porque `bcrypt` tem limite de 72 bytes e a senha fornecida era maior.
+  - **Correção:** o `CryptContext` em `server/app/security.py` foi trocado para `pbkdf2_sha256` como padrão, mantendo `bcrypt` apenas para compatibilidade de leitura.
+  - **Resultado:** o bootstrap do admin deixou de quebrar por tamanho de senha.
+
+6. **`/login` devolvendo `500` por caminho relativo de templates/static**
+  - **Causa:** `Jinja2Templates` e `StaticFiles` dependiam do diretório atual do processo, que no deploy não era garantido.
+  - **Correção:** os caminhos passaram a ser absolutos, calculados com `Path(__file__)`.
+  - **Resultado:** o login passou a renderizar de forma consistente.
+
+7. **`TemplateResponse` usado com a assinatura errada**
+  - **Causa:** o runtime do Starlette/FastAPI estava interpretando o dicionário de contexto como nome de template, gerando `TypeError: unhashable type: 'dict'`.
+  - **Correção:** `admin_ui.py` passou a usar `TemplateResponse(request, "template.html", context)`.
+  - **Resultado:** o painel voltou a renderizar a UI sem quebrar em `/login`.
+
+8. **`JSON.parse` quebrando na tela de nova licença**
+  - **Causa:** o front fazia `res.json()` e `JSON.parse()` assumindo que a API sempre responderia JSON, mas às vezes vinha HTML de login ou outro erro.
+  - **Correção:** `new_license.html` passou a ler a resposta como texto, validar `content-type` e só parsear JSON se realmente fosse JSON.
+  - **Resultado:** o front para de explodir com `unexpected character at line 1 column 1` e mostra uma mensagem útil.
+
+9. **CORS / Cloudflare Insights no navegador**
+  - **Causa:** um script externo do Cloudflare (`static.cloudflareinsights.com`) aparece bloqueado pelo browser em alguns contextos.
+  - **Correção:** nenhuma necessária para o funcionamento do servidor; é ruído do navegador e não da aplicação.
+  - **Resultado:** foi descartado como causa do erro principal.
+
+10. **`PRIVATE_KEY_B64` preenchido com PEM bruto em vez de base64**
+  - **Causa:** o segredo chegou no container como o texto PEM inteiro colado na variável `PRIVATE_KEY_B64`.
+  - **Correção:** `server/app/crypto.py` passou a aceitar o valor bruto em `PRIVATE_KEY_B64` como fallback, além de base64 verdadeiro e `PRIVATE_KEY_PEM`.
+  - **Resultado:** a geração de licença deixou de falhar por formato de entrada da chave.
+
+11. **Resposta não-JSON ao gerar licença nova**
+  - **Causa:** a tela `/licenses/new` assumia que a API sempre devolveria JSON e quebrava quando recebia HTML de login ou outra resposta inesperada.
+  - **Correção:** o front passou a ler a resposta como texto, checar `content-type` e só chamar `JSON.parse` quando a resposta realmente é JSON.
+  - **Resultado:** o erro `SyntaxError: JSON.parse: unexpected character at line 1 column 1` deixou de derrubar a tela, e agora a UI mostra uma mensagem legível.
+
 ## Cliente Andromeda (`C:\Users\Icarl\Documents\GitHub\andromeda`)
 
 Arquivo principal: `src/core/system/auxiliars/license_manager_controller.py`. `requests` já é dependência do projeto (`pyproject.toml`).
