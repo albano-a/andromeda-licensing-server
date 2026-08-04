@@ -55,6 +55,17 @@ src/core/security/license_users.db
 
 Imported rows are not re-signed. They are inserted as legacy records with `signature = null` and `license_json = null`.
 
+### Modo desenvolvimento com SQLite
+
+Para rodar o servidor localmente sem PostgreSQL, defina:
+
+```env
+APP_ENV=dev
+```
+
+Sem `DATABASE_URL`, o app passa a usar um arquivo SQLite local em `server/data/andromeda-dev.db`.
+Você ainda pode sobrescrever isso fornecendo `DATABASE_URL` manualmente.
+
 ### Observação
 
 If Coolify shows `database andromeda does not exist`, the `Initial database` value and the database name in `DATABASE_URL` do not match. The app does not create the PostgreSQL database itself; it only creates tables after connecting.
