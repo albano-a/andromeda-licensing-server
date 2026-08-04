@@ -20,7 +20,16 @@ class CryptoManager:
         key_bytes = None
 
         if settings.private_key_b64:
-            key_bytes = base64.b64decode(settings.private_key_b64)
+            raw_value = settings.private_key_b64.strip()
+            if raw_value.startswith("-----BEGIN"):
+                key_bytes = raw_value.encode()
+            else:
+                try:
+                    key_bytes = base64.b64decode(raw_value)
+                except Exception as exc:
+                    raise RuntimeError(
+                        "PRIVATE_KEY_B64 must contain base64-encoded PEM or raw PEM text"
+                    ) from exc
         elif settings.private_key_pem:
             key_bytes = settings.private_key_pem.encode()
         else:

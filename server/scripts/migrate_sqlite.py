@@ -26,14 +26,12 @@ import sys
 import uuid
 from pathlib import Path
 
-
 ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from app.database import SessionLocal  # noqa: E402
 from app.models import License  # noqa: E402
-
 
 DEFAULT_SOURCE = ROOT_DIR.parent / "src" / "core" / "security" / "license_users.db"
 

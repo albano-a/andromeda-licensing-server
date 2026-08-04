@@ -1,73 +1,73 @@
 {% extends "base.html" %} {% block title %}Nova licença{% endblock %} {% block
 content %}
 <form class="card" id="new-license-form">
-    <h1>Nova licença</h1>
-    <p id="form-error" class="error"></p>
-    <label>Email<input type="email" name="user_email" required /></label>
-    <label>Hardware ID<input type="text" name="hardware_id" required /></label>
-    <label
-        >Duração (meses)<input
-            type="number"
-            name="months"
-            value="6"
-            min="1"
-            max="12"
-            step="0.5"
-            required
-    /></label>
-    <button type="submit">Gerar e assinar</button>
+  <h1>Nova licença</h1>
+  <p id="form-error" class="error"></p>
+  <label>Email<input type="email" name="user_email" required /></label>
+  <label>Hardware ID<input type="text" name="hardware_id" required /></label>
+  <label
+    >Duração (meses)<input
+      type="number"
+      name="months"
+      value="6"
+      min="1"
+      max="12"
+      step="0.5"
+      required
+  /></label>
+  <button type="submit">Gerar e assinar</button>
 </form>
 
 <script>
-    document
-        .getElementById("new-license-form")
-        .addEventListener("submit", async (e) => {
-            e.preventDefault();
-            const form = e.target;
-            const payload = {
-                user_email: form.user_email.value,
-                hardware_id: form.hardware_id.value,
-                months: parseFloat(form.months.value),
-            };
-            const res = await fetch("/api/v1/admin/licenses", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-            const contentType = res.headers.get("content-type") || "";
-            const responseText = await res.text();
-            let responseData = null;
+  document
+    .getElementById("new-license-form")
+    .addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const payload = {
+        user_email: form.user_email.value,
+        hardware_id: form.hardware_id.value,
+        months: parseFloat(form.months.value),
+      };
+      const res = await fetch("/api/v1/admin/licenses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const contentType = res.headers.get("content-type") || "";
+      const responseText = await res.text();
+      let responseData = null;
 
-            if (contentType.includes("application/json") && responseText) {
-                try {
-                    responseData = JSON.parse(responseText);
-                } catch (err) {
-                    responseData = null;
-                }
-            }
+      if (contentType.includes("application/json") && responseText) {
+        try {
+          responseData = JSON.parse(responseText);
+        } catch (err) {
+          responseData = null;
+        }
+      }
 
-            if (!res.ok) {
-                document.getElementById("form-error").textContent =
-                    (responseData && responseData.detail) ||
-                    responseText ||
-                    "Erro ao gerar licença";
-                return;
-            }
+      if (!res.ok) {
+        document.getElementById("form-error").textContent =
+          (responseData && responseData.detail) ||
+          responseText ||
+          "Erro ao gerar licença";
+        return;
+      }
 
-            if (!responseData) {
-                document.getElementById("form-error").textContent =
-                    "A resposta do servidor não veio em JSON. Verifique se você continua logado.";
-                return;
-            }
-            const blob = new Blob(
-                [JSON.stringify(responseData.license_json, null, 2)],
-                { type: "application/json" },
-            );
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(blob);
-            a.download = `license_${payload.user_email.replace("@", "_")}.json`;
-            a.click();
-            window.location = "/dashboard";
-        });
+      if (!responseData) {
+        document.getElementById("form-error").textContent =
+          "A resposta do servidor não veio em JSON. Verifique se você continua logado.";
+        return;
+      }
+      const blob = new Blob(
+        [JSON.stringify(responseData.license_json, null, 2)],
+        { type: "application/json" },
+      );
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `license_${payload.user_email.replace("@", "_")}.json`;
+      a.click();
+      window.location = "/dashboard";
+    });
 </script>
 {% endblock %}
