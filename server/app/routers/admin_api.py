@@ -16,9 +16,7 @@ from ..schemas import (
 )
 from ..security import hash_password, require_login
 
-router = APIRouter(
-    prefix="/api/v1/admin", tags=["admin"], dependencies=[Depends(require_login)]
-)
+router = APIRouter(prefix="/api/v1/admin", tags=["admin"], dependencies=[Depends(require_login)])
 
 _EMAIL_RGX = re.compile(r"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$")
 
@@ -118,18 +116,14 @@ def download_license(license_row_id: str, db: Session = Depends(get_db)):
 
 @router.get("/admins", response_model=list[str])
 def list_admins(db: Session = Depends(get_db)):
-    return [
-        a.username for a in db.query(AdminUser).order_by(AdminUser.created_at).all()
-    ]
+    return [a.username for a in db.query(AdminUser).order_by(AdminUser.created_at).all()]
 
 
 @router.post("/admins")
 def create_admin(payload: AdminCreateRequest, db: Session = Depends(get_db)):
     if db.query(AdminUser).filter(AdminUser.username == payload.username).first():
         raise HTTPException(status_code=400, detail="Username already exists")
-    admin = AdminUser(
-        username=payload.username, password_hash=hash_password(payload.password)
-    )
+    admin = AdminUser(username=payload.username, password_hash=hash_password(payload.password))
     db.add(admin)
     db.commit()
     return {"ok": True}
