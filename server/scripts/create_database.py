@@ -40,10 +40,16 @@ def _build_connection_url(database_url: str, maintenance_db: str) -> str:
     if not parsed.scheme or not parsed.hostname:
         raise ValueError("DATABASE_URL must be a valid PostgreSQL URL")
 
+    scheme = parsed.scheme
+    if "+" in scheme:
+        scheme = scheme.split("+", 1)[0]
+    if scheme == "postgres":
+        scheme = "postgresql"
+
     path = "/" + maintenance_db.lstrip("/")
     return urlunparse(
         (
-            parsed.scheme,
+            scheme,
             parsed.netloc,
             path,
             parsed.params,
